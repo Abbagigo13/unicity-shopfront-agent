@@ -1,0 +1,22 @@
+[
+  {
+    "id": "sticker-pack",
+    "name": "GenLayer sticker pack",
+    "description": "5 vinyl stickers, weatherproof",
+    "coinId": "UCT",
+    "amount": "500000000000000000",
+    "decimals": 18,
+    "stock": 20,
+    "deliveryMessage": "Thanks! Ship-to address: DM it over and it'll go out within 2 days."
+  },
+  {
+    "id": "appraisal-credit",
+    "name": "1x Smart Price Check appraisal",
+    "description": "One AI appraisal run via the Smart Price Check contract",
+    "coinId": "UCT",
+    "amount": "1000000000000000000",
+    "decimals": 18,
+    "stock": -1,
+    "deliveryMessage": "Credit applied — reply with: <product name> | <category> | <condition> | <your asking price> to redeem."
+  }
+]

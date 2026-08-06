@@ -1,0 +1,23 @@
+{
+  "name": "unicity-shopfront-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/agent.ts",
+    "test-buyer": "tsx scripts/test-buyer.ts",
+    "inspect-contract": "tsx scripts/inspect-genlayer-contract.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@unicitylabs/sphere-sdk": "^0.13.2",
+    "genlayer-js": "^1.1.8",
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.7.0"
+  }
+}
