@@ -30,8 +30,10 @@ export default function Home() {
   // Form states for AI Appraisal
   const [pName, setPName] = useState('');
   const [category, setCategory] = useState('');
+  const [condition, setCondition] = useState('used');
   const [askingPrice, setAskingPrice] = useState('');
   const [appraisalResult, setAppraisalResult] = useState<AppraisalResult | null>(null);
+  const [appraisalError, setAppraisalError] = useState<string | null>(null);
   const [loadingAppraisal, setLoadingAppraisal] = useState(false);
 
   useEffect(() => {
@@ -41,22 +43,35 @@ export default function Home() {
       .catch((err) => console.error('Failed to load catalog:', err));
   }, []);
 
-  const handleAppraisalSubmit = (e: React.FormEvent) => {
+  const handleAppraisalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingAppraisal(true);
     setAppraisalResult(null);
+    setAppraisalError(null);
 
-    // Simulates calling GenLayer contract consensus endpoint
-    setTimeout(() => {
-      setAppraisalResult({
-        productName: pName,
-        verdict: 'FAIR PRICE',
-        marketLow: Number(askingPrice) * 0.9,
-        marketHigh: Number(askingPrice) * 1.15,
-        reason: 'Consensus verified against Web3 asset index.',
+    try {
+      const res = await fetch('/api/appraise', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          productName: pName,
+          category,
+          condition,
+          sellerPrice: Number(askingPrice),
+        }),
       });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAppraisalError(data.error ?? 'Appraisal failed.');
+      } else {
+        setAppraisalResult(data);
+      }
+    } catch {
+      setAppraisalError('Network error — could not reach the appraisal service.');
+    } finally {
       setLoadingAppraisal(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -165,7 +180,7 @@ export default function Home() {
             </p>
             <div className="bg-[#0b0805] p-4 rounded-xl border border-amber-900/40 font-mono text-xs mb-5 space-y-2">
               <div className="text-zinc-400">1. Open Sphere Wallet</div>
-              <div className="text-orange-400 font-bold">2. DM: @abbagigoo</div>
+              <div className="text-orange-400 font-bold">2. DM: @abbagigoo_shop</div>
               <div className="text-amber-300 font-bold">3. Type command: buy {selectedItem.id}</div>
             </div>
             <button
@@ -186,7 +201,16 @@ export default function Home() {
               <Sparkles size={16} />
               <span className="text-xs font-bold uppercase tracking-widest">GenLayer Contract</span>
             </div>
-            <h3 className="text-xl font-bold text-zinc-100 mb-5">Smart Price Check Appraisal</h3>
+            <h3 className="text-xl font-bold text-zinc-100 mb-1">Smart Price Check Appraisal</h3>
+            <p className="text-[11px] text-amber-200/40 mb-5">
+              Real write transaction on GenLayer Studionet — takes ~15-45s for validator consensus.
+            </p>
+
+            {appraisalError && (
+              <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-3 mb-4 text-xs text-red-300">
+                {appraisalError}
+              </div>
+            )}
 
             {!appraisalResult ? (
               <form onSubmit={handleAppraisalSubmit} className="space-y-4">
@@ -219,17 +243,31 @@ export default function Home() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-amber-200/70 mb-1.5 uppercase tracking-wide">
-                      Asking Price ($)
+                      Condition
                     </label>
-                    <input
-                      type="number"
-                      required
-                      value={askingPrice}
-                      onChange={(e) => setAskingPrice(e.target.value)}
-                      placeholder="e.g. 120"
-                      className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500"
-                    />
+                    <select
+                      value={condition}
+                      onChange={(e) => setCondition(e.target.value)}
+                      className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="new">New</option>
+                      <option value="used">Used</option>
+                      <option value="refurbished">Refurbished</option>
+                    </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200/70 mb-1.5 uppercase tracking-wide">
+                    Asking Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={askingPrice}
+                    onChange={(e) => setAskingPrice(e.target.value)}
+                    placeholder="e.g. 120"
+                    className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500"
+                  />
                 </div>
                 <div className="flex justify-end space-x-3 pt-3">
                   <button
@@ -244,7 +282,7 @@ export default function Home() {
                     disabled={loadingAppraisal}
                     className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-zinc-950 font-bold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20"
                   >
-                    {loadingAppraisal ? <span>Running Consensus...</span> : <span>Request Appraisal</span>}
+                    {loadingAppraisal ? <span>Running Consensus (~30s)...</span> : <span>Request Appraisal</span>}
                   </button>
                 </div>
               </form>
@@ -266,7 +304,10 @@ export default function Home() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setAppraisalResult(null)}
+                  onClick={() => {
+                    setAppraisalResult(null);
+                    setAppraisalError(null);
+                  }}
                   className="w-full bg-amber-600 hover:bg-amber-500 text-zinc-950 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition"
                 >
                   Check Another Product
