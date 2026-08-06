@@ -37,4 +37,4 @@ Edit `catalog.json` to list your actual items. Fill in `.env`:
 npm start
 ```
 
-From another Sphere wallet, DM `@my_shop`:
+From another Sphere wallet, DM `@abbagigoo`:
