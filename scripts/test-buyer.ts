@@ -1,22 +1,18 @@
 import 'dotenv/config';
 import { createInterface } from 'node:readline';
 import { Sphere, getCoinIdBySymbol, parseTokenAmount, toHumanReadable } from '@unicitylabs/sphere-sdk';
-import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
+import { createNodeProviders, FileStorageProvider } from '@unicitylabs/sphere-sdk/impl/nodejs';
 import { createWalletApiProviders } from '@unicitylabs/sphere-sdk/impl/shared/wallet-api';
 
-// ---------------------------------------------------------------------------
-// Config — deliberately separate from the shop's .env values. This is a
-// disposable test identity with no connection to any real wallet.
-// ---------------------------------------------------------------------------
 const NETWORK = (process.env.UNICITY_NETWORK as 'testnet' | 'testnet2' | 'mainnet' | 'dev') || 'testnet';
 const SHOP_HANDLE = process.env.SHOP_NAMETAG || 'my_shop';
 const MINT_COIN = process.env.SETTLEMENT_COIN || 'UCT';
-const MINT_AMOUNT = process.env.TESTBUYER_MINT_AMOUNT || '5'; // whole units
+const MINT_AMOUNT = process.env.TESTBUYER_MINT_AMOUNT || '5';
 
 async function main() {
   const baseProviders = createNodeProviders({
     network: NETWORK,
-    dataDir: './wallet-data-testbuyer', // separate from the shop's own wallet-data
+    dataDir: './wallet-data-testbuyer',
     tokensDir: './tokens-testbuyer',
     oracle: { apiKey: process.env.UNICITY_API_KEY },
   });
@@ -27,52 +23,56 @@ async function main() {
     deviceId: process.env.WALLET_API_DEVICE_ID_BUYER || 'test-buyer-device',
   });
 
+  const storage = new FileStorageProvider('./wallet-data-testbuyer');
+
   const { sphere, created, generatedMnemonic } = await Sphere.init({
     ...providers,
+    storage,
     network: NETWORK,
     autoGenerate: true,
     mnemonic: process.env.TESTBUYER_MNEMONIC || undefined,
-    nametag: process.env.TESTBUYER_NAMETAG || undefined, // optional — fine to stay anonymous
+    nametag: process.env.TESTBUYER_NAMETAG || undefined,
   });
 
   if (created && generatedMnemonic) {
     console.log('New disposable test-buyer wallet created.');
-    console.log('(Optional) save to TESTBUYER_MNEMONIC in .env to keep this identity across runs:');
+    console.log('Save to TESTBUYER_MNEMONIC in .env to keep this identity across runs:');
     console.log(generatedMnemonic);
   }
 
   console.log('Test buyer live at:', sphere.identity?.directAddress, sphere.identity?.nametag ?? '(no nametag)');
 
-  // -- Self-mint some test funds so there's something to spend --------------
+  // -- Self-mint test tokens --------------------------------------------------
   const coinId = getCoinIdBySymbol(MINT_COIN);
   if (coinId) {
     const amount = parseTokenAmount(MINT_AMOUNT, 18);
     const mintResult = await sphere.payments.mintFungibleToken(coinId, amount);
     if (mintResult.success) {
-      console.log(`Self-minted ${MINT_AMOUNT} ${MINT_COIN} (testnet only, no faucet needed).`);
+      console.log(`Self-minted ${MINT_AMOUNT} ${MINT_COIN} (testnet only).`);
     } else {
-      console.warn(`Mint failed (${mintResult.error}) — you may already have a balance, or check MINT_COIN.`);
+      console.warn(`Mint skipped/failed (${mintResult.error}) — check existing balance.`);
     }
   } else {
     console.warn(`Coin symbol "${MINT_COIN}" not found in registry — skipping self-mint.`);
   }
 
-  // -- Auto-pay any incoming payment request (this is the buyer side) -------
- sphere.payments.onPaymentRequest(async (request) => {
+  // -- Auto-pay incoming payment requests -------------------------------------
+  sphere.payments.onPaymentRequest(async (request) => {
     console.log(`\n[Payment request] ${request.amount} ${request.symbol} — "${request.message}"`);
     try {
       const result = await sphere.payments.payPaymentRequest(request.id);
       if (result.status === 'failed') {
         console.log(`  -> failed to pay: ${result.error ?? '(no error message)'}`);
       } else {
-        console.log(`  -> ${result.status}${result.deliveryPending ? ' (delivery pending, not a failure)' : ''}`);
+        console.log(`  -> ${result.status}${result.deliveryPending ? ' (delivery pending)' : ''}`);
       }
     } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       console.error('  -> payment threw:', (err as any)?.code ?? err);
     }
   });
 
-  // -- Print whatever the shop sends back ------------------------------------
+  // -- Print incoming messages from shop -------------------------------------
   sphere.communications.onDirectMessage((msg) => {
     const from = msg.senderNametag ?? msg.senderPubkey;
     console.log(`\n[${from}]: ${msg.content}`);
