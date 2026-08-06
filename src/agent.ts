@@ -33,6 +33,14 @@ function loadCatalog(): CatalogItem[] {
   return JSON.parse(raw) as CatalogItem[];
 }
 
+function saveCatalog() {
+  try {
+    writeFileSync(CATALOG_PATH, JSON.stringify(catalog, null, 2));
+  } catch (err) {
+    console.error('Failed to persist catalog stock to disk:', err);
+  }
+}
+
 let catalog: CatalogItem[] = loadCatalog();
 
 function findItem(id: string): CatalogItem | undefined {
@@ -233,7 +241,10 @@ async function main() {
 
     if (response.responseType === 'paid') {
       const item = findItem(order.itemId);
-      if (item && item.stock > 0) item.stock -= 1;
+      if (item && item.stock > 0) {
+        item.stock -= 1;
+        saveCatalog();
+      }
       if (order.itemId === APPRAISAL_ITEM_ID) awaitingAppraisal.add(order.buyer);
 
       await sphere.communications.sendDM(order.buyer, item?.deliveryMessage ?? 'Payment received — thank you!');
