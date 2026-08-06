@@ -11,7 +11,7 @@ sells on demand with an automatic payment request → fulfillment flow.
    (`sphere.market.postIntent`) on startup and re-posted every
    `REPOST_INTERVAL_HOURS` (intents expire after 7 days).
 3. **DM storefront**-customers can:
-   - `catalog`—list everything in stock
+   - `catalog`-list everything in stock
    - `quote <id>`-item detail + price (+ best-effort USD estimate)
    - `buy <id>`-triggers a payment request for the exact price
 4. **Fulfillment**- `sphere.payments.onPaymentRequestResponse` fires when
