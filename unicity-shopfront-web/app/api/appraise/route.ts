@@ -74,9 +74,11 @@ export async function POST(req: NextRequest) {
     });
 
     const receipt = await client.waitForTransactionReceipt({
-      hash: txHash,
-      status: TransactionStatus.FINALIZED,
-    });
+  hash: txHash,
+  status: TransactionStatus.FINALIZED,
+  interval: 3000,   // poll every 3s (default is likely too infrequent or too few retries)
+  retries: 60,       // 3000ms * 60 = up to 3 minutes — enough for multi-rotation consensus
+});
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ticketId = (receipt as any).result?.data ?? (receipt as any).data ?? (receipt as any).return_value;
