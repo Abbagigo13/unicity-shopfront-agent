@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       address: CONTRACT_ADDRESS as `0x${string}`,
       functionName: SUBMIT_METHOD,
       args: [productName, category, condition, Number(sellerPrice)],
+      value: 0n,
     });
 
     const receipt = await client.waitForTransactionReceipt({
