@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     // 1. Submit — real write transaction, goes through validator consensus
     const txHash = await client.writeContract({
       account,
-      address: CONTRACT_ADDRESS,
+      address: CONTRACT_ADDRESS as `0x${string}`,
       functionName: SUBMIT_METHOD,
       args: [productName, category, condition, Number(sellerPrice)],
     });
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     while (Date.now() < deadline) {
       try {
         const result = await client.readContract({
-          address: CONTRACT_ADDRESS,
+          address: CONTRACT_ADDRESS as `0x${string}`,
           functionName: RESULT_METHOD,
           args: [ticketId],
         });
