@@ -71,6 +71,7 @@ export default function Home() {
             >
               <Sparkles size={15} />
               <span>AI Price Check</span>
+              <span className="text-[9px] bg-black/20 px-1.5 py-0.5 rounded-full ml-1">BETA</span>
             </button>
             <span className="text-xs bg-amber-500/10 text-orange-400 border border-amber-500/30 px-3 py-1.5 rounded-full font-mono">
               ● Network: testnet2
@@ -174,7 +175,8 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-zinc-100 mb-1">Smart Price Check Appraisal</h3>
             <p className="text-[11px] text-amber-200/40 mb-5">
-              Real write transaction on GenLayer Studionet — usually 15-45s, occasionally longer if validators need extra rotations.
+              Real write transaction on GenLayer Studionet — usually 15-45s, but this network is
+              still in beta and can occasionally take several minutes under heavy load.
             </p>
 
             {appraisalState.phase === 'error' && (
