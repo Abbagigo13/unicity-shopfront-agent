@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShoppingBag, Sparkles, MessageSquare } from 'lucide-react';
+import { useAppraisal } from '../hooks/useAppraisal';
 
 interface CatalogItem {
   id: string;
@@ -14,14 +15,6 @@ interface CatalogItem {
   deliveryMessage: string;
 }
 
-interface AppraisalResult {
-  productName: string;
-  verdict: string;
-  marketLow: number;
-  marketHigh: number;
-  reason: string;
-}
-
 export default function Home() {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
@@ -30,9 +23,10 @@ export default function Home() {
   // Form states for AI Appraisal
   const [pName, setPName] = useState('');
   const [category, setCategory] = useState('');
+  const [condition, setCondition] = useState('used');
   const [askingPrice, setAskingPrice] = useState('');
-  const [appraisalResult, setAppraisalResult] = useState<AppraisalResult | null>(null);
-  const [loadingAppraisal, setLoadingAppraisal] = useState(false);
+
+  const { state: appraisalState, requestAppraisal, reset: resetAppraisal } = useAppraisal();
 
   useEffect(() => {
     fetch('/catalog.json')
@@ -41,22 +35,14 @@ export default function Home() {
       .catch((err) => console.error('Failed to load catalog:', err));
   }, []);
 
-  const handleAppraisalSubmit = (e: React.FormEvent) => {
+  const handleAppraisalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoadingAppraisal(true);
-    setAppraisalResult(null);
-
-    // Simulates calling GenLayer contract consensus endpoint
-    setTimeout(() => {
-      setAppraisalResult({
-        productName: pName,
-        verdict: 'FAIR PRICE',
-        marketLow: Number(askingPrice) * 0.9,
-        marketHigh: Number(askingPrice) * 1.15,
-        reason: 'Consensus verified against Web3 asset index.',
-      });
-      setLoadingAppraisal(false);
-    }, 2000);
+    await requestAppraisal({
+      productName: pName,
+      category,
+      condition,
+      sellerPrice: Number(askingPrice),
+    });
   };
 
   return (
@@ -165,7 +151,7 @@ export default function Home() {
             </p>
             <div className="bg-[#0b0805] p-4 rounded-xl border border-amber-900/40 font-mono text-xs mb-5 space-y-2">
               <div className="text-zinc-400">1. Open Sphere Wallet</div>
-              <div className="text-orange-400 font-bold">2. DM: @abbagigoo</div>
+              <div className="text-orange-400 font-bold">2. DM: @abbagigoo_shop</div>
               <div className="text-amber-300 font-bold">3. Type command: buy {selectedItem.id}</div>
             </div>
             <button
@@ -186,9 +172,23 @@ export default function Home() {
               <Sparkles size={16} />
               <span className="text-xs font-bold uppercase tracking-widest">GenLayer Contract</span>
             </div>
-            <h3 className="text-xl font-bold text-zinc-100 mb-5">Smart Price Check Appraisal</h3>
+            <h3 className="text-xl font-bold text-zinc-100 mb-1">Smart Price Check Appraisal</h3>
+            <p className="text-[11px] text-amber-200/40 mb-5">
+              Real write transaction on GenLayer Studionet — usually 15-45s, occasionally longer if validators need extra rotations.
+            </p>
 
-            {!appraisalResult ? (
+            {appraisalState.phase === 'error' && (
+              <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-3 mb-4 text-xs text-red-300">
+                {appraisalState.message}
+              </div>
+            )}
+            {appraisalState.phase === 'timeout' && (
+              <div className="bg-amber-950/40 border border-amber-500/30 rounded-xl p-3 mb-4 text-xs text-amber-300">
+                Still waiting on validator consensus after {Math.round(appraisalState.elapsedMs / 1000)}s — Studionet may be under heavy load. You can try again shortly.
+              </div>
+            )}
+
+            {appraisalState.phase !== 'complete' ? (
               <form onSubmit={handleAppraisalSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-amber-200/70 mb-1.5 uppercase tracking-wide">
@@ -219,17 +219,31 @@ export default function Home() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-amber-200/70 mb-1.5 uppercase tracking-wide">
-                      Asking Price ($)
+                      Condition
                     </label>
-                    <input
-                      type="number"
-                      required
-                      value={askingPrice}
-                      onChange={(e) => setAskingPrice(e.target.value)}
-                      placeholder="e.g. 120"
-                      className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500"
-                    />
+                    <select
+                      value={condition}
+                      onChange={(e) => setCondition(e.target.value)}
+                      className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="new">New</option>
+                      <option value="used">Used</option>
+                      <option value="refurbished">Refurbished</option>
+                    </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200/70 mb-1.5 uppercase tracking-wide">
+                    Asking Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={askingPrice}
+                    onChange={(e) => setAskingPrice(e.target.value)}
+                    placeholder="e.g. 120"
+                    className="w-full bg-[#0b0805] border border-amber-900/40 rounded-xl px-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500"
+                  />
                 </div>
                 <div className="flex justify-end space-x-3 pt-3">
                   <button
@@ -241,10 +255,16 @@ export default function Home() {
                   </button>
                   <button
                     type="submit"
-                    disabled={loadingAppraisal}
+                    disabled={appraisalState.phase === 'submitting' || appraisalState.phase === 'polling'}
                     className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-zinc-950 font-bold px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20"
                   >
-                    {loadingAppraisal ? <span>Running Consensus...</span> : <span>Request Appraisal</span>}
+                    {appraisalState.phase === 'submitting' && <span>Submitting...</span>}
+                    {appraisalState.phase === 'polling' && (
+                      <span>Waiting for consensus ({Math.round(appraisalState.elapsedMs / 1000)}s)...</span>
+                    )}
+                    {(appraisalState.phase === 'idle' ||
+                      appraisalState.phase === 'timeout' ||
+                      appraisalState.phase === 'error') && <span>Request Appraisal</span>}
                   </button>
                 </div>
               </form>
@@ -254,19 +274,26 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs text-amber-200/60 font-semibold uppercase tracking-wider">Verdict</span>
                     <span className="text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2.5 py-0.5 rounded font-mono">
-                      {appraisalResult.verdict}
+                      {appraisalState.phase === 'complete' && appraisalState.result.verdict}
                     </span>
                   </div>
-                  <div className="text-base font-bold text-zinc-100 mb-1">{appraisalResult.productName}</div>
+                  <div className="text-base font-bold text-zinc-100 mb-1">
+                    {appraisalState.phase === 'complete' && appraisalState.result.productName}
+                  </div>
                   <div className="text-xs text-amber-400 font-mono">
-                    Est. Market Range: ${appraisalResult.marketLow.toFixed(2)} - ${appraisalResult.marketHigh.toFixed(2)}
+                    {appraisalState.phase === 'complete' &&
+                      `Est. Market Range: $${appraisalState.result.marketLow.toFixed(2)} - $${appraisalState.result.marketHigh.toFixed(2)}`}
                   </div>
                   <p className="text-xs text-amber-200/70 mt-3 border-t border-amber-900/30 pt-3 leading-relaxed">
-                    {appraisalResult.reason}
+                    {appraisalState.phase === 'complete' && appraisalState.result.reason}
                   </p>
                 </div>
                 <button
-                  onClick={() => setAppraisalResult(null)}
+                  onClick={() => {
+                    resetAppraisal();
+                    setPName('');
+                    setAskingPrice('');
+                  }}
                   className="w-full bg-amber-600 hover:bg-amber-500 text-zinc-950 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition"
                 >
                   Check Another Product
