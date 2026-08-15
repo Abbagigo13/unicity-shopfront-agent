@@ -25,9 +25,16 @@ type AppraisalState =
   | { phase: 'error'; message: string };
 
 const POLL_INTERVAL_MS = 4000;
+const EXPLORER_BASE_URL = 'https://explorer-studio.genlayer.com/tx/';
 
 export function useAppraisal() {
   const [state, setState] = useState<AppraisalState>({ phase: 'idle' });
+  // Kept separate from AppraisalState on purpose — the tx hash is known
+  // the moment submit succeeds and stays valid/clickable regardless of
+  // whether polling later completes, times out, or errors. Tying it to
+  // one specific phase would lose it exactly when it's most useful (e.g.
+  // on 'timeout', so the user can still verify the real transaction).
+  const [txHash, setTxHash] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPolling = useCallback(() => {
@@ -40,6 +47,7 @@ export function useAppraisal() {
   const requestAppraisal = useCallback(
     async (input: AppraisalInput) => {
       stopPolling();
+      setTxHash(null);
       setState({ phase: 'submitting' });
 
       try {
@@ -51,16 +59,18 @@ export function useAppraisal() {
         const submitData = await submitRes.json();
 
         if (!submitRes.ok) {
+          if (submitData.txHash) setTxHash(submitData.txHash);
           setState({ phase: 'error', message: submitData.error ?? 'Submit failed.' });
           return;
         }
 
-        const { txHash, ticketId, submittedAt } = submitData;
+        const { txHash: hash, ticketId, submittedAt } = submitData;
+        setTxHash(hash);
 
         const poll = async () => {
           const params = new URLSearchParams({ submittedAt: String(submittedAt) });
           if (ticketId) params.set('ticketId', ticketId);
-          else params.set('txHash', txHash);
+          else params.set('txHash', hash);
 
           const statusRes = await fetch(`/api/appraisal/status?${params.toString()}`);
           const statusData = await statusRes.json();
@@ -99,8 +109,11 @@ export function useAppraisal() {
 
   const reset = useCallback(() => {
     stopPolling();
+    setTxHash(null);
     setState({ phase: 'idle' });
   }, [stopPolling]);
 
-  return { state, requestAppraisal, cancel: stopPolling, reset };
+  const explorerUrl = txHash ? `${EXPLORER_BASE_URL}${txHash}` : null;
+
+  return { state, txHash, explorerUrl, requestAppraisal, cancel: stopPolling, reset };
 }
