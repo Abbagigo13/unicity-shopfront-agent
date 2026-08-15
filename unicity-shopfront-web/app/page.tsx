@@ -26,7 +26,7 @@ export default function Home() {
   const [condition, setCondition] = useState('used');
   const [askingPrice, setAskingPrice] = useState('');
 
-  const { state: appraisalState, requestAppraisal, reset: resetAppraisal } = useAppraisal();
+  const { state: appraisalState, explorerUrl, requestAppraisal, reset: resetAppraisal } = useAppraisal();
 
   useEffect(() => {
     fetch('/catalog.json')
@@ -181,12 +181,24 @@ export default function Home() {
 
             {appraisalState.phase === 'error' && (
               <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-3 mb-4 text-xs text-red-300">
-                {appraisalState.message}
+                <div>{appraisalState.message}</div>
+                {explorerUrl && (
+                  <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
+                     className="inline-block mt-2 text-orange-400 underline font-mono text-[11px]">
+                    View real transaction on GenLayer Explorer →
+                  </a>
+                )}
               </div>
             )}
             {appraisalState.phase === 'timeout' && (
               <div className="bg-amber-950/40 border border-amber-500/30 rounded-xl p-3 mb-4 text-xs text-amber-300">
-                Still waiting on validator consensus after {Math.round(appraisalState.elapsedMs / 1000)}s — Studionet may be under heavy load. You can try again shortly.
+                <div>Still waiting on validator consensus after {Math.round(appraisalState.elapsedMs / 1000)}s — Studionet may be under heavy load. You can try again shortly.</div>
+                {explorerUrl && (
+                  <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
+                     className="inline-block mt-2 text-orange-400 underline font-mono text-[11px]">
+                    Track it live on GenLayer Explorer →
+                  </a>
+                )}
               </div>
             )}
 
@@ -289,6 +301,12 @@ export default function Home() {
                   <p className="text-xs text-amber-200/70 mt-3 border-t border-amber-900/30 pt-3 leading-relaxed">
                     {appraisalState.phase === 'complete' && appraisalState.result.reason}
                   </p>
+                  {explorerUrl && (
+                    <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
+                       className="inline-block mt-3 text-orange-400 underline font-mono text-[11px]">
+                      View on GenLayer Explorer →
+                    </a>
+                  )}
                 </div>
                 <button
                   onClick={() => {
